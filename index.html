@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Youth Sports Play Time Tracker</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --success: #16a34a;
+      --danger: #dc2626;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #0f172a;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 16px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 600px;
+    }
+
+    h1, h2 {
+      text-align: center;
+      margin-top: 0;
+    }
+
+    .card {
+      background: var(--card-bg);
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      margin-bottom: 16px;
+    }
+
+    textarea {
+      width: 100%;
+      height: 120px;
+      padding: 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      box-sizing: border-box;
+      font-size: 16px;
+      margin-bottom: 12px;
+      resize: vertical;
+    }
+
+    button {
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      font-size: 16px;
+      font-weight: bold;
+      border-radius: 6px;
+      cursor: pointer;
+      width: 100%;
+      transition: background-color 0.2s;
+    }
+
+    button:hover {
+      background-color: var(--primary-hover);
+    }
+
+    .btn-secondary {
+      background-color: #64748b;
+      margin-top: 8px;
+    }
+
+    .btn-secondary:hover {
+      background-color: #475569;
+    }
+
+    .stats-bar {
+      display: flex;
+      justify-content: space-between;
+      background: #e2e8f0;
+      padding: 12px;
+      border-radius: 8px;
+      font-weight: bold;
+      margin-bottom: 16px;
+    }
+
+    .player-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .player-card {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      border-radius: 8px;
+      border: 2px solid #e2e8f0;
+      background-color: white;
+      transition: all 0.2s;
+    }
+
+    .player-card.active {
+      border-color: var(--success);
+      background-color: #f0fdf4;
+    }
+
+    .player-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .player-name {
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    .player-time {
+      font-size: 14px;
+      color: #64748b;
+      font-family: monospace;
+    }
+
+    .sub-btn {
+      width: auto;
+      padding: 8px 16px;
+      font-size: 14px;
+    }
+
+    .sub-btn.sub-in {
+      background-color: var(--success);
+    }
+
+    .sub-btn.sub-out {
+      background-color: var(--danger);
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .add-more-container {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .add-more-container input {
+      flex: 1;
+      padding: 8px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+    }
+
+    .add-more-container button {
+      width: auto;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- STEP 1: SETUP TEAM -->
+    <div id="setup-screen" class="card">
+      <h1>Basketball / Sports Tracker</h1>
+      <p>Enter player names (one per line, or separated by commas):</p>
+      <textarea id="player-input" placeholder="Player 1&#10;Player 2&#10;Player 3"></textarea>
+      <button id="btn-done">Done & Start Match</button>
+    </div>
+
+    <!-- STEP 2: GAME DASHBOARD -->
+    <div id="game-screen" class="hidden">
+      <div class="stats-bar">
+        <span>Active Players: <span id="active-count">0</span></span>
+        <span>Team Avg: <span id="avg-time">00:00</span></span>
+      </div>
+
+      <div class="card">
+        <h2>Roster</h2>
+        <div id="player-list" class="player-list"></div>
+
+        <!-- Add player mid-game -->
+        <div class="add-more-container">
+          <input type="text" id="new-player-name" placeholder="Add late player...">
+          <button id="btn-add-player">Add</button>
+        </div>
+      </div>
+
+      <button id="btn-reset" class="btn-secondary">Reset Match / Start Over</button>
+    </div>
+  </div>
+
+  <script>
+    // State management
+    let players = [];
+    let timerInterval = null;
+
+    // DOM Elements
+    const setupScreen = document.getElementById('setup-screen');
+    const gameScreen = document.getElementById('game-screen');
+    const playerInput = document.getElementById('player-input');
+    const btnDone = document.getElementById('btn-done');
+    const playerListEl = document.getElementById('player-list');
+    const activeCountEl = document.getElementById('active-count');
+    const avgTimeEl = document.getElementById('avg-time');
+    const btnAddPlayer = document.getElementById('btn-add-player');
+    const newPlayerInput = document.getElementById('new-player-name');
+    const btnReset = document.getElementById('btn-reset');
+
+    // Initialize/Setup Event Listeners
+    btnDone.addEventListener('click', finishSetup);
+    btnAddPlayer.addEventListener('click', addSinglePlayer);
+    btnReset.addEventListener('click', resetGame);
+
+    function finishSetup() {
+      const rawText = playerInput.value.trim();
+      if (!rawText) return alert("Please enter at least one player name.");
+
+      // Split names by newline or comma
+      const names = rawText.split(/[\n,]+/).map(n => n.trim()).filter(n => n.length > 0);
+
+      names.forEach(name => {
+        players.push({
+          id: Date.now() + Math.random(),
+          name: name,
+          inGame: false,
+          secondsPlayed: 0
+        });
+      });
+
+      setupScreen.classList.add('hidden');
+      gameScreen.classList.remove('hidden');
+
+      startGlobalTimer();
+      renderRoster();
+    }
+
+    function addSinglePlayer() {
+      const name = newPlayerInput.value.trim();
+      if (!name) return;
+
+      players.push({
+        id: Date.now() + Math.random(),
+        name: name,
+        inGame: false,
+        secondsPlayed: 0
+      });
+
+      newPlayerInput.value = '';
+      renderRoster();
+    }
+
+    function togglePlayerStatus(id) {
+      const player = players.find(p => p.id === id);
+      if (player) {
+        player.inGame = !player.inGame;
+        renderRoster();
+      }
+    }
+
+    function startGlobalTimer() {
+      if (timerInterval) clearInterval(timerInterval);
+
+      // Tick every 1 second
+      timerInterval = setInterval(() => {
+        players.forEach(p => {
+          if (p.inGame) {
+            p.secondsPlayed += 1;
+          }
+        });
+        updateTimersUI();
+      }, 1000);
+    }
+
+    function formatTime(totalSeconds) {
+      const mins = Math.floor(totalSeconds / 60);
+      const secs = totalSeconds % 60;
+      return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    function updateTimersUI() {
+      let totalTeamSeconds = 0;
+      let activeCount = 0;
+
+      players.forEach(p => {
+        totalTeamSeconds += p.secondsPlayed;
+        if (p.inGame) activeCount++;
+
+        const timeEl = document.getElementById(`time-${p.id}`);
+        if (timeEl) {
+          timeEl.textContent = formatTime(p.secondsPlayed);
+        }
+      });
+
+      // Update Top Stats
+      activeCountEl.textContent = activeCount;
+      
+      const avgSeconds = players.length > 0 ? Math.floor(totalTeamSeconds / players.length) : 0;
+      avgTimeEl.textContent = formatTime(avgSeconds);
+    }
+
+    function renderRoster() {
+      playerListEl.innerHTML = '';
+
+      players.forEach(p => {
+        const card = document.createElement('div');
+        card.className = `player-card ${p.inGame ? 'active' : ''}`;
+
+        card.innerHTML = `
+          <div class="player-info">
+            <span class="player-name">${p.name}</span>
+            <span class="player-time" id="time-${p.id}">${formatTime(p.secondsPlayed)}</span>
+          </div>
+          <button 
+            class="sub-btn ${p.inGame ? 'sub-out' : 'sub-in'}" 
+            onclick="togglePlayerStatus(${p.id})"
+          >
+            ${p.inGame ? 'Sub Out (Bench)' : 'Sub In (Play)'}
+          </button>
+        `;
+
+        playerListEl.appendChild(card);
+      });
+
+      updateTimersUI();
+    }
+
+    function resetGame() {
+      if (confirm("Are you sure you want to reset and clear all data?")) {
+        clearInterval(timerInterval);
+        players = [];
+        playerInput.value = '';
+        gameScreen.classList.add('hidden');
+        setupScreen.classList.remove('hidden');
+      }
+    }
+  </script>
+</body>
+</html>
