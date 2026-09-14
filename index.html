@@ -209,6 +209,7 @@
     // State management
     let players = [];
     let timerInterval = null;
+    const storageKey = 'youth-sports-play-time-tracker';
 
     // DOM Elements
     const setupScreen = document.getElementById('setup-screen');
@@ -230,12 +231,57 @@
     btnAddPlayer.addEventListener('click', addSinglePlayer);
     btnReset.addEventListener('click', resetGame);
 
+    loadSavedState();
+
+    function saveState(matchStarted = !gameScreen.classList.contains('hidden')) {
+      try {
+        localStorage.setItem(storageKey, JSON.stringify({
+          players: players,
+          matchStarted: matchStarted,
+          savedAt: Date.now()
+        }));
+      } catch (error) {
+        console.warn('Unable to save tracker state.', error);
+      }
+    }
+
+    function loadSavedState() {
+      try {
+        const savedState = JSON.parse(localStorage.getItem(storageKey));
+        if (!savedState || !Array.isArray(savedState.players)) return;
+
+        players = savedState.players;
+        const elapsedSeconds = savedState.savedAt
+          ? Math.max(0, Math.floor((Date.now() - savedState.savedAt) / 1000))
+          : 0;
+
+        if (savedState.matchStarted) {
+          players.forEach(player => {
+            if (player.inGame) player.secondsPlayed += elapsedSeconds;
+          });
+          setupScreen.classList.add('hidden');
+          gameScreen.classList.remove('hidden');
+          startGlobalTimer();
+          renderRoster();
+        } else {
+          players.forEach(player => {
+            const listItem = document.createElement('li');
+            listItem.textContent = player.name;
+            setupPlayerListEl.appendChild(listItem);
+          });
+        }
+      } catch (error) {
+        console.warn('Unable to load saved tracker state.', error);
+      }
+    }
+
     function finishSetup() {
       if (players.length === 0) return alert("Please add at least one player.");
 
       setupScreen.classList.add('hidden');
       gameScreen.classList.remove('hidden');
 
+      saveState(true);
       startGlobalTimer();
       renderRoster();
     }
@@ -255,6 +301,7 @@
       const listItem = document.createElement('li');
       listItem.textContent = name;
       setupPlayerListEl.appendChild(listItem);
+      saveState(false);
       playerInput.focus();
     }
 
@@ -270,6 +317,7 @@
       });
 
       newPlayerInput.value = '';
+      saveState();
       renderRoster();
     }
 
@@ -277,6 +325,7 @@
       const player = players.find(p => p.id === id);
       if (player) {
         player.inGame = !player.inGame;
+        saveState();
         renderRoster();
       }
     }
@@ -291,6 +340,7 @@
             p.secondsPlayed += 1;
           }
         });
+        saveState();
         updateTimersUI();
       }, 1000);
     }
@@ -352,7 +402,9 @@
       if (confirm("Are you sure you want to reset and clear all data?")) {
         clearInterval(timerInterval);
         players = [];
+        localStorage.removeItem(storageKey);
         playerInput.value = '';
+        setupPlayerListEl.innerHTML = '';
         gameScreen.classList.add('hidden');
         setupScreen.classList.remove('hidden');
       }
