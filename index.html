@@ -43,16 +43,14 @@
       margin-bottom: 16px;
     }
 
-    textarea {
+    input[type="text"] {
       width: 100%;
-      height: 120px;
       padding: 10px;
       border: 1px solid #cbd5e1;
       border-radius: 6px;
       box-sizing: border-box;
       font-size: 16px;
       margin-bottom: 12px;
-      resize: vertical;
     }
 
     button {
@@ -163,6 +161,11 @@
     .add-more-container button {
       width: auto;
     }
+
+    .setup-player-list {
+      margin: 4px 0 16px;
+      padding-left: 24px;
+    }
   </style>
 </head>
 <body>
@@ -171,8 +174,12 @@
     <!-- STEP 1: SETUP TEAM -->
     <div id="setup-screen" class="card">
       <h1>Sports Tracker</h1>
-      <p>Enter player names (one per line, or separated by commas):</p>
-      <textarea id="player-input" placeholder="Player 1&#10;Player 2&#10;Player 3"></textarea>
+      <p>Add each player individually:</p>
+      <div class="add-more-container">
+        <input type="text" id="player-input" placeholder="Player name...">
+        <button id="btn-add-setup-player">Add Player</button>
+      </div>
+      <ul id="setup-player-list" class="setup-player-list"></ul>
       <button id="btn-done">Done & Start Match</button>
     </div>
 
@@ -208,6 +215,8 @@
     const gameScreen = document.getElementById('game-screen');
     const playerInput = document.getElementById('player-input');
     const btnDone = document.getElementById('btn-done');
+    const btnAddSetupPlayer = document.getElementById('btn-add-setup-player');
+    const setupPlayerListEl = document.getElementById('setup-player-list');
     const playerListEl = document.getElementById('player-list');
     const activeCountEl = document.getElementById('active-count');
     const avgTimeEl = document.getElementById('avg-time');
@@ -217,30 +226,36 @@
 
     // Initialize/Setup Event Listeners
     btnDone.addEventListener('click', finishSetup);
+    btnAddSetupPlayer.addEventListener('click', addSetupPlayer);
     btnAddPlayer.addEventListener('click', addSinglePlayer);
     btnReset.addEventListener('click', resetGame);
 
     function finishSetup() {
-      const rawText = playerInput.value.trim();
-      if (!rawText) return alert("Please enter at least one player name.");
-
-      // Split names by newline or comma
-      const names = rawText.split(/[\n,]+/).map(n => n.trim()).filter(n => n.length > 0);
-
-      names.forEach(name => {
-        players.push({
-          id: Date.now() + Math.random(),
-          name: name,
-          inGame: false,
-          secondsPlayed: 0
-        });
-      });
+      if (players.length === 0) return alert("Please add at least one player.");
 
       setupScreen.classList.add('hidden');
       gameScreen.classList.remove('hidden');
 
       startGlobalTimer();
       renderRoster();
+    }
+
+    function addSetupPlayer() {
+      const name = playerInput.value.trim();
+      if (!name) return;
+
+      players.push({
+        id: Date.now() + Math.random(),
+        name: name,
+        inGame: false,
+        secondsPlayed: 0
+      });
+
+      playerInput.value = '';
+      const listItem = document.createElement('li');
+      listItem.textContent = name;
+      setupPlayerListEl.appendChild(listItem);
+      playerInput.focus();
     }
 
     function addSinglePlayer() {
